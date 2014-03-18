@@ -26,6 +26,7 @@ Elastic Search implementation of time series.
     // Details of company behind the plugin (if there is one)
     def organization = [ name: "BertramLabs", url: "http://www.bertramlabs.com/" ]
 
+    def dependsOn = [timeSeries: "* > 0.1-SNAPSHOT"]
 
     // Location of the plugin's issue tracker.
     def issueManagement = [ system: "GIT", url: "https://github.com/bertramdev/timeseries-elastic-search" ]
