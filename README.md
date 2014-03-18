@@ -1,4 +1,4 @@
-Timeseries Elastic Search Grails Plugin
+TimeSeries Elastic Search Grails Plugin
 =======================================
 
 TimeSeries grails plugin Elastic Search provider. See also [Time Series Grails Plugin](https://github.com/bertramdev/timeseries).
