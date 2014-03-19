@@ -125,7 +125,7 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 				id = referenceId+':'+k+':'+start.time,
 				exp = System.currentTimeMillis() + getMillisecondExpirations(k, config),
 				rec = [ _ttl:exp, refId: referenceId, metric:k, value:v, start:start, end: new Date(start.time +(Long)(startAndInterval.intervalSecs*1000) )]
-			//runAsync {
+			runAsync {
 				//println "Async Insert"
 				try {
 					getElasticSearchHelper().withElasticSearch { client ->
@@ -138,7 +138,7 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 					ex.printStackTrace()
 					log.error("Error in ElasticSearchTimeSeriesProvider#saveMetrics while Async saving metric", ex)
 				}
-			//}
+			}
 		}
 
 	}
@@ -146,7 +146,7 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 
 	@Override
 	void bulkSaveMetrics(String referenceId, List<Map<Date, Map<String, Double>>> metricsByTime, groovy.util.ConfigObject config) {
-		//runAsync {
+		runAsync {
 			//println "Async Insert"
 			try {
 				getElasticSearchHelper().withElasticSearch { client ->
@@ -170,7 +170,7 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 			} catch(ex) {
 				log.error("Error in ElasticSearchTimeSeriesProvider#bulkSaveMetrics while Async saving metric", ex)
 			}
-		//}
+		}
 	}
 
 	@Override
