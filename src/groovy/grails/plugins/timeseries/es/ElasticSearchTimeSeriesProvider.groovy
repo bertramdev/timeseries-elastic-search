@@ -23,7 +23,6 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 
 	@Override
 	void init(groovy.util.ConfigObject config) {
-
 	}
 
 	@Override
@@ -70,9 +69,7 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 			"start" : {"type" : "date"},
 			"end" : {"type" : "date"},
 			"_timestamp" : {
-				"type" : "date",
-	            "enabled" : true,
-	            "path" : "start"
+	            "enabled" : true
         	}
 		}
 	}
@@ -95,18 +92,18 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 	}
 
 	private searchType(nm) {
-		return Class.forName('org.elasticsearch.action.search.SearchType').valueOf(nm)
+		return this.class.classLoader.loadClass('org.elasticsearch.action.search.SearchType').valueOf(nm)
 	}
 
 	private sortOrder(dir) {
-		return Class.forName('org.elasticsearch.search.sort.SortOrder').valueOf(dir)
+		return this.class.classLoader.loadClass('org.elasticsearch.search.sort.SortOrder').valueOf(dir)
 	}
 
 	private builder(nm, Object[] args = null) {
 		if (args)
-			return Class.forName('org.elasticsearch.index.query.'+nm + 'Builder').newInstance(args)
+			return this.class.classLoader.loadClass('org.elasticsearch.index.query.'+nm + 'Builder').newInstance(args)
 		else
-			return Class.forName('org.elasticsearch.index.query.'+nm + 'Builder').newInstance()
+			return this.class.classLoader.loadClass('org.elasticsearch.index.query.'+nm + 'Builder').newInstance()
 	}
 
 	def getIndexName(end) {
@@ -124,7 +121,8 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 				start = new Date(startAndInterval.start.time+(Long)(startAndInterval.intervalSecs * startAndInterval.interval * 1000)),
 				id = referenceId+':'+k+':'+start.time,
 				exp = System.currentTimeMillis() + getMillisecondExpirations(k, config),
-				rec = [ _ttl:exp, refId: referenceId, metric:k, value:v, start:start, end: new Date(start.time +(Long)(startAndInterval.intervalSecs*1000) )]
+				rec = [ _ttl:exp, _timestamp: start, refId: referenceId, metric:k, value:v, start:start, end: new Date(start.time +(Long)(startAndInterval.intervalSecs*1000) )]
+
 			runAsync {
 				//println "Async Insert"
 				try {
@@ -176,7 +174,8 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 	@Override
 	Map getMetrics(Date start, Date end, String referenceIdQuery, String metricNameQuery, Map<String, Object> options, groovy.util.ConfigObject config) {
 		def rtn = [:],
-			grandTotal
+			grandTotal, 
+			b
 		getElasticSearchHelper().withElasticSearch { client ->
 			def queries = [],
 			    sq = client.prepareSearch('time-series')
@@ -185,8 +184,16 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 						.setFrom(0).setSize(10000)
 
 			queries << builder('RangeQuery', ["start"] as Object[]).from(start).to(end)
-			if (referenceIdQuery) queries << builder('FieldQuery', ['refId',referenceIdQuery] as Object[]) 
-			if (metricNameQuery) queries << builder('FieldQuery', ['metric',metricNameQuery] as Object[]) 
+			if (referenceIdQuery) {
+				b = builder('QueryStringQuery', ['refId:'+referenceIdQuery] as Object[]) 
+				b.fuzziness = org.elasticsearch.common.unit.Fuzziness.ZERO
+				queries << b
+			}
+			if (metricNameQuery) {
+				b = builder('QueryStringQuery', ['metric:'+metricNameQuery] as Object[]) 
+				b.fuzziness = org.elasticsearch.common.unit.Fuzziness.ZERO
+				queries << b
+			}
 			sq.addSort('start',  sortOrder('ASC') )
 			if (queries) {
 				def bq = builder('BoolQuery')
@@ -229,7 +236,8 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 		getElasticSearchHelper().withElasticSearch { client ->
 			// i need to find matching ref ids and matching metric names
 			def queries = [],
-			    sq = client.prepareSearch('time-series').setSearchType(searchType('COUNT')).setTypes("metric")
+			    sq = client.prepareSearch('time-series').setSearchType(searchType('COUNT')).setTypes("metric"),
+			    b
 			queries << builder('RangeQuery', ["start"] as Object[]).from(start).to(end)
 			if (referenceIdQuery) queries << QueryBuilders.queryString('refId:'+referenceIdQuery)
 			def bq = builder('BoolQuery')
@@ -247,9 +255,16 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 			    refId = termEntry.getTerm().toString()
 				queries = []
 			    sq = client.prepareSearch('time-series').setSearchType(searchType('COUNT')).setTypes("metric")
-				queries << builder('RangeQuery', ["start"] as Object[]).from(start).to(end)
-				queries << builder('FieldQuery', ['refId',refId] as Object[]) 
-				if (metricNameQuery) queries << QueryBuilders.queryString('metric:'+metricNameQuery)
+				b = builder('RangeQuery', ["start"] as Object[]).from(start).to(end)
+				queries << b
+				b =  builder('QueryStringQuery', ['refId:'+refId] as Object[]) 
+				b.fuzziness = org.elasticsearch.common.unit.Fuzziness.ZERO
+				queries << b
+				if (metricNameQuery) {
+					b = QueryBuilders.queryString('metric:'+metricNameQuery)
+					b.fuzziness = org.elasticsearch.common.unit.Fuzziness.ZERO
+					queries << b
+				}
 				bq = builder('BoolQuery')
 				queries.each {query->
 					bq.must(query)
@@ -264,9 +279,14 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 					queries = []
 					sq = client.prepareSearch('time-series').setSearchType(searchType('COUNT')).setTypes("metric")
 
-					queries << builder('RangeQuery', ["start"] as Object[]).from(start).to(end)
-					queries << builder('FieldQuery', ['refId',refId] as Object[]) 
-					queries << builder('FieldQuery', ['metric',metricName] as Object[]) 
+					b = builder('RangeQuery', ["start"] as Object[]).from(start).to(end)
+					queries << b
+					b = builder('QueryStringQuery', ['refId:'+refId] as Object[]) 
+					b.fuzziness = org.elasticsearch.common.unit.Fuzziness.ZERO
+					queries << b
+					b = builder('QueryStringQuery', ['metric:'+metricName] as Object[]) 
+					b.fuzziness = org.elasticsearch.common.unit.Fuzziness.ZERO
+					queries << b
 					bq = builder('BoolQuery')
 					queries.each {query->
 						bq.must(query)
