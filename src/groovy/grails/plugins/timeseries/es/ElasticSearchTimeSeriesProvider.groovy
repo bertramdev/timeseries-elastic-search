@@ -63,9 +63,9 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 	"metric" : {
 		"properties" : {
 			"_ttl" : { "enabled" : true },
-			"refId" : {"type" : "string", "store": true},
-			"metric" : {"type" : "string", "store": true},
-			"value" : {"type" : "double"},
+			"refId" : {"type" : "string", "store": true, "index":"not_analyzed"},
+			"metric" : {"type" : "string", "store": true, "index":"not_analyzed"},
+			"value" : {"type" : "double", "index":"not_analyzed"},
 			"start" : {"type" : "date"},
 			"end" : {"type" : "date"},
 			"_timestamp" : {
@@ -239,7 +239,11 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 			    sq = client.prepareSearch('time-series').setSearchType(searchType('COUNT')).setTypes("metric"),
 			    b
 			queries << builder('RangeQuery', ["start"] as Object[]).from(start).to(end)
-			if (referenceIdQuery) queries << QueryBuilders.queryString('refId:'+referenceIdQuery)
+			if (referenceIdQuery) {
+				b = builder('QueryStringQuery', ['refId:'+referenceIdQuery] as Object[]) 
+				b.fuzziness = org.elasticsearch.common.unit.Fuzziness.ZERO
+				queries << b
+			}
 			def bq = builder('BoolQuery')
 			queries.each {query->
 				bq.must(query)
