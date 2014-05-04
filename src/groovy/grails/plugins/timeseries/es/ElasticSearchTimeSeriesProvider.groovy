@@ -208,6 +208,10 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 			grandTotal = hits.totalHits
 			hits.hits()?.each{ hit->
 				def rec = hit.sourceAsMap()
+				if (rec.start instanceof String) {
+					//weird inability to get date type
+					rec.start = Date.parse('yyyy-MM-dd\'T\'HH:mm:ss.SSSZ', rec.start.replaceAll('Z','-0000'))
+				}
 				rtn[rec.refId] = rtn[rec.refId] ?: [:]
 				rtn[rec.refId][rec.metric] = rtn[rec.refId][rec.metric] ?: []
 				rtn[rec.refId][rec.metric] << [timestamp:rec.start, value: rec.value]
