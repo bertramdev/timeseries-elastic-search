@@ -18,15 +18,19 @@ grails.project.dependency.resolution = {
               ":tomcat:7.0.47") {
             export = false
         }
-        runtime(":time-series:0.1-SNAPSHOT",":hibernate:3.6.10.6") {
+        runtime(":hibernate:3.6.10.6") {
             export = false
         }
         // plugins needed at runtime but not for compilation
+        runtime":time-series:0.2.2"
         runtime ":executor:0.3" 
-        runtime ":elasticsearch:0.90.3.0-SNAPSHOT"
+        compile ":elasticsearch:0.90.3.0-SNAPSHOT"
+
+        test ":executor:0.3" 
+        test ":elasticsearch:0.90.3.0-SNAPSHOT"
     }
 }
 
 //if (System.getProperty('grails.project.plugins.dir')) {
-//    grails.project.plugins.dir=System.getProperty('grails.project.plugins.dir', 'plugins')
+    grails.project.plugins.dir=System.getProperty('grails.project.plugins.dir', 'plugins')
 //}

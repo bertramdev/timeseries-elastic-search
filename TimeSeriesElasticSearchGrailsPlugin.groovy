@@ -1,5 +1,5 @@
 class TimeSeriesElasticSearchGrailsPlugin {
-    def version = "0.1.3"
+    def version = "0.2.2"
     def grailsVersion = "2.0 > *"
     def title = "Time Series Elastic Search Plugin" // Headline display name of the plugin
     def author = "Jeremy Leng"
@@ -16,6 +16,7 @@ Elastic Search implementation of time series.
     def doWithApplicationContext = { applicationContext ->
         def provider = new grails.plugins.timeseries.es.ElasticSearchTimeSeriesProvider()
         provider.addMetricMappingTemplate()
+        provider.addCounterMappingTemplate()
         addAsyncMethods(application, provider)
         applicationContext['timeSeriesService'].registerProvider(provider)
     }

@@ -3,6 +3,16 @@ package grails.plugins.timeseries.es
 import groovy.util.GroovyTestCase
 import grails.converters.*
 import grails.plugins.timeseries.*
+import grails.plugins.timeseries.*
+import grails.converters.*
+import groovy.transform.PackageScope
+import org.elasticsearch.search.facet.*
+import org.elasticsearch.search.facet.FacetBuilders.*
+import org.elasticsearch.search.facet.datehistogram.*
+import org.elasticsearch.search.facet.statistical.*
+import org.elasticsearch.search.facet.terms.*
+import org.elasticsearch.index.query.*
+import org.elasticsearch.common.unit.*
 
 class TimeSeriesIntegrationTests extends GroovyTestCase {
 	def transactional =  false
@@ -35,6 +45,18 @@ class TimeSeriesIntegrationTests extends GroovyTestCase {
 		new Date(System.currentTimeMillis() - (Long)(60*60*1000))
 	}
 
+	void testSaveCounter() {
+		timeSeriesService.flush()
+		def now = getTestDate()
+		println now
+		grailsApplication.config.grails.plugins.timeseries.counters.poop.resolution = AbstractTimeSeriesProvider.ONE_MINUTE
+		5.times {
+			timeSeriesService.saveCounter('testSaveCounter', 'poop', 1d, now)
+		}
+		Thread.sleep(1000)
+		println new JSON(timeSeriesService.getCounters(new Date(0), new Date(System.currentTimeMillis() + 180000l), 'testSaveCounter', 'poop')).toString(true)
+	}
+
 	void testSaveMetrics() {
 		flush('testSaveMetrics')
 		def now = getTestDate()
@@ -45,6 +67,23 @@ class TimeSeriesIntegrationTests extends GroovyTestCase {
 		println new JSON(timeSeriesService.getMetrics(new Date(0), new Date(System.currentTimeMillis() + 180000l), 'testSaveMetrics', 'poop')).toString(true)
 	}
 
+	void testSaveCounterWithHourlyAggregate() {
+		timeSeriesService.flush()
+		def now = getTestDate()
+		println now
+		grailsApplication.config.grails.plugins.timeseries.counters.poop.resolution = AbstractTimeSeriesProvider.ONE_MINUTE
+		grailsApplication.config.grails.plugins.timeseries.counters.poop.aggregates = ['1h':'1d']
+		5.times {
+			timeSeriesService.saveCounter('testSaveCounterWithHourlyAggregate', 'poop', 1d, now)
+		}
+
+		now = new Date(now.time + (61000l*60l))
+		5.times {
+			timeSeriesService.saveCounter('testSaveCounterWithHourlyAggregate', 'poop', 1d, now)
+		}
+		Thread.sleep(1000)
+		println new JSON(timeSeriesService.getCounterAggregates('1h',new Date(0), new Date(System.currentTimeMillis() + 180000l), 'testSaveCounterWithHourlyAggregate', 'poop')).toString(true)
+	}
 
 	void testSaveMetricsWithHourlyAggregate() {
 		flush('testSaveMetricsWithHourlyAggregate')
