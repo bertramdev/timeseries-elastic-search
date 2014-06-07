@@ -24,6 +24,9 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 
 	@Override
 	void init(groovy.util.ConfigObject config) {
+		addMetricMappingTemplate()
+		addCounterMappingTemplate()
+		prepareIndices()
 	}
 
 	@Override
@@ -95,6 +98,22 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 }
 '''
 
+	def prepareIndices() {
+		getElasticSearchHelper().withElasticSearch { client ->
+		  client.admin()
+				.indices()
+				.prepareCreate('time-series')
+				.execute()
+		}
+		getElasticSearchHelper().withElasticSearch { client ->
+		  client.admin()
+				.indices()
+				.prepareCreate('time-series-counters')
+				.execute()
+		}
+
+	}
+
 	def addMetricMappingTemplate() {
 		getElasticSearchHelper().withElasticSearch { client ->
 		  client.admin()
@@ -152,15 +171,21 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 				id = referenceId+':'+k+':'+start.time,
 				exp = System.currentTimeMillis() + getMillisecondExpirations(k, config),
 				rec = [ _ttl:exp, _timestamp: start, refId: referenceId, counter:k, count:v, start:start, end: new Date(start.time +(Long)(startAndInterval.intervalSecs*1000) )]
-
-				getElasticSearchHelper().withElasticSearch { client ->
-				  client.prepareUpdate('time-series-counters', "counter",id)
-						  .setScript('ctx._source.count += incr')
-						  .addScriptParam('incr', v)
-						  .setUpsert(rec)
-						  .execute()
-						  .actionGet()
+			runAsync {
+				try {
+					getElasticSearchHelper().withElasticSearch { client ->
+					  client.prepareUpdate('time-series-counters', "counter",id)
+							  .setScript('ctx._source.count += incr')
+							  .addScriptParam('incr', v)
+							  .setUpsert(rec)
+							  .setRetryOnConflict(3)
+							  .execute()
+							  .actionGet()
+					}
+				} catch (Throwable t) {
+					log.error('Unable to update counter '+k+ ':'+t.toString())
 				}
+			}
 		}
 	}
 
@@ -209,7 +234,7 @@ class ElasticSearchTimeSeriesProvider extends AbstractTimeSeriesProvider {
 				//println "Async Insert"
 				try {
 					getElasticSearchHelper().withElasticSearch { client ->
-					  client.prepareIndex('time-series', "metric",id)
+					  client.prepareIndex(getIndexName(rec.end), "metric",id)
 							  .setSource(rec)
 							  .execute()
 							  .actionGet()
