@@ -13,7 +13,11 @@ grails.project.dependency.resolution = {
         mavenCentral()
     }
     dependencies {
-      compile "org.elasticsearch:elasticsearch:1.0.1"        
+        /*
+      compile ("org.elasticsearch:elasticsearch:1.0.1") {
+        export=false
+      }
+      */
     }
 
     plugins {
@@ -28,10 +32,13 @@ grails.project.dependency.resolution = {
         // plugins needed at runtime but not for compilation
         runtime":time-series:0.2.4.1"
         runtime ":executor:0.3" 
-        compile ":elasticsearch:0.90.3.0-SNAPSHOT"
+        compile ":elasticsearch:0.0.3.1"
 
-        test ":executor:0.3" 
-        test ":elasticsearch:0.90.3.0-SNAPSHOT"
+        /*
+        compile(":elasticsearch:0.90.3.0-SNAPSHOT"){
+            export = false
+        }
+    */
     }
 }
 

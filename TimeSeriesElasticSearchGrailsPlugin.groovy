@@ -1,5 +1,5 @@
 class TimeSeriesElasticSearchGrailsPlugin {
-    def version = "0.2.7"
+    def version = "0.2.8"
     def grailsVersion = "2.0 > *"
     def title = "Time Series Elastic Search Plugin" // Headline display name of the plugin
     def author = "Jeremy Leng"
